@@ -6,41 +6,15 @@ import { ArrowLeft, BookOpen, Calculator, Globe2, Shapes } from "lucide-react";
 export const Learning: React.FC = () => {
   const courses = [
     {
-      id: "math",
-      title: "奇妙数学",
-      desc: "认识数字和图形",
-      color: "bg-red-400",
-      shadow: "shadow-red-700/50",
-      border: "border-red-600",
-      icon: <Calculator className="w-16 h-16 text-white mb-4" />,
-    },
-    {
-      id: "english",
-      title: "趣味英语",
-      desc: "跟着儿歌学字母",
+      id: "words",
+      title: "开心背单词",
+      desc: "看图识字，边玩边学",
       color: "bg-blue-400",
       shadow: "shadow-blue-700/50",
       border: "border-blue-600",
       icon: <Globe2 className="w-16 h-16 text-white mb-4" />,
-    },
-    {
-      id: "chinese",
-      title: "汉字乐园",
-      desc: "有趣的象形字",
-      color: "bg-green-400",
-      shadow: "shadow-green-700/50",
-      border: "border-green-600",
-      icon: <BookOpen className="w-16 h-16 text-white mb-4" />,
-    },
-    {
-      id: "art",
-      title: "创意美术",
-      desc: "画出彩色世界",
-      color: "bg-purple-400",
-      shadow: "shadow-purple-700/50",
-      border: "border-purple-600",
-      icon: <Shapes className="w-16 h-16 text-white mb-4" />,
-    },
+      link: "/learning/words"
+    }
   ];
 
   return (
@@ -71,24 +45,25 @@ export const Learning: React.FC = () => {
         <h2 className="text-4xl font-extrabold text-gray-800 mb-8 drop-shadow-sm">
           今天想学点什么呢？🤔
         </h2>
-        <div className="w-full max-w-5xl grid grid-cols-2 gap-8 px-4">
+        <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 px-4">
           {courses.map((course, index) => (
-            <motion.div
-              key={course.id}
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-              className={`${course.color} rounded-[40px] p-8 flex flex-col items-center justify-center text-center cursor-pointer border-b-[8px] ${course.border} ${course.shadow} shadow-2xl hover:brightness-110 active:border-b-0 active:translate-y-2 transition-all`}
-            >
-              {course.icon}
-              <h3 className="text-4xl font-extrabold text-white mb-2 drop-shadow-md tracking-wider">
-                {course.title}
-              </h3>
-              <p className="text-xl text-white/90 font-bold bg-black/10 px-4 py-2 rounded-full mt-2">
-                {course.desc}
-              </p>
-            </motion.div>
+            <Link key={course.id} to={course.link} className="block">
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className={`${course.color} rounded-[40px] p-8 flex flex-col items-center justify-center text-center cursor-pointer border-b-[8px] ${course.border} ${course.shadow} shadow-2xl hover:brightness-110 active:border-b-0 active:translate-y-2 transition-all`}
+              >
+                {course.icon}
+                <h3 className="text-4xl font-extrabold text-white mb-2 drop-shadow-md tracking-wider">
+                  {course.title}
+                </h3>
+                <p className="text-xl text-white/90 font-bold bg-black/10 px-4 py-2 rounded-full mt-2">
+                  {course.desc}
+                </p>
+              </motion.div>
+            </Link>
           ))}
         </div>
       </main>

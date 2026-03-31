@@ -12,6 +12,7 @@ interface GameState {
   treeProgress: number; // 0 to 100
   chickenSkin: string; // 'default' | 'pony'
   cards: any[];
+  learnedWords: string[];
 }
 
 interface GameContextType extends GameState {
@@ -26,6 +27,8 @@ interface GameContextType extends GameState {
   feedCorn: () => void;
   changeSkin: (skin: string) => void;
   drawCard: () => void;
+  addStars: (amount: number) => void;
+  addLearnedWord: (word: string) => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -42,7 +45,21 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     treeProgress: 0,
     chickenSkin: "default",
     cards: [],
+    learnedWords: [],
   });
+
+  const addStars = (amount: number) => {
+    setState((prev) => ({ ...prev, stars: prev.stars + amount }));
+  };
+
+  const addLearnedWord = (word: string) => {
+    setState((prev) => {
+      if (!prev.learnedWords.includes(word)) {
+        return { ...prev, learnedWords: [...prev.learnedWords, word] };
+      }
+      return prev;
+    });
+  };
 
   const increaseTreeProgress = (amount: number) => {
     setState((prev) => {
@@ -181,6 +198,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         feedCorn,
         changeSkin,
         drawCard,
+        addStars,
+        addLearnedWord,
       }}
     >
       {children}
