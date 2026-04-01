@@ -12,7 +12,7 @@ interface Bug {
 }
 
 export const CrawlingBugs: React.FC = () => {
-  const { catchCrawlingWorm } = useGame();
+  const { catchCrawlingWorm, catchWormLeft } = useGame();
   const [bugs, setBugs] = useState<Bug[]>([]);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export const CrawlingBugs: React.FC = () => {
         const direction = Math.random() > 0.5 ? "right" : "left";
         const startX = direction === "right" ? -10 : 110; // Start outside the screen
         const endX = direction === "right" ? 110 : -10; // End outside the screen
-        const yPosition = Math.random() * 20 + 2; // Bottom 2% to 22%
+        const yPosition = Math.random() * 12 + 26; // Lift bugs above the bottom action buttons
         const duration = Math.random() * 15 + 10; // 10 to 25 seconds to cross
 
         const newBug: Bug = {
@@ -51,6 +51,11 @@ export const CrawlingBugs: React.FC = () => {
   }, []);
 
   const handleCatch = (id: number) => {
+    if (catchWormLeft <= 0) {
+      catchCrawlingWorm();
+      return;
+    }
+
     catchCrawlingWorm();
     setBugs((prev) => prev.filter((b) => b.id !== id));
   };

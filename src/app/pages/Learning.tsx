@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router";
 import { motion } from "motion/react";
-import { ArrowLeft, BookOpen, Calculator, Globe2, Shapes } from "lucide-react";
+import { ArrowLeft, BookOpen, Calculator, Globe2 } from "lucide-react";
 
 export const Learning: React.FC = () => {
   const courses = [
@@ -14,11 +14,21 @@ export const Learning: React.FC = () => {
       border: "border-blue-600",
       icon: <Globe2 className="w-16 h-16 text-white mb-4" />,
       link: "/learning/words"
+    },
+    {
+      id: "oral-math-race",
+      title: "口算竞赛",
+      desc: "60秒冲分，连击翻倍",
+      color: "bg-amber-400",
+      shadow: "shadow-amber-700/40",
+      border: "border-amber-600",
+      icon: <Calculator className="w-16 h-16 text-white mb-4" />,
+      link: "/learning/oral-math-race"
     }
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-orange-50 p-6 overflow-hidden relative">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-orange-50 p-6">
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-200 via-orange-100 to-red-50"></div>
 
       {/* 头部导航 */}

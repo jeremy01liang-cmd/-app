@@ -53,7 +53,7 @@ export const ChickenArea: React.FC = () => {
           }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="text-[140px] drop-shadow-2xl cursor-pointer select-none leading-none"
+          className="cursor-pointer select-none text-[clamp(6rem,16vh,8.75rem)] leading-none drop-shadow-2xl"
         >
           {getChickenEmoji()}
           
@@ -74,9 +74,14 @@ export const ChickenArea: React.FC = () => {
 
       {/* 底部操作按钮 */}
       <div className="flex flex-col gap-4 mt-auto z-10 shrink-0">
+        <div className="flex justify-center">
+          <div className="rounded-full border border-red-200 bg-white/85 px-4 py-1.5 text-xs font-bold text-red-500 shadow-sm">
+            今日还能抓 {catchWormLeft} 条虫子
+          </div>
+        </div>
         <div className="flex gap-4 justify-center">
           {/* 喂虫子区域 */}
-          <div className="flex flex-col gap-2 items-center w-[120px]">
+          <div className="flex w-[120px] flex-col items-center gap-2">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -97,7 +102,7 @@ export const ChickenArea: React.FC = () => {
           </div>
 
           {/* 喂玉米区域 */}
-          <div className="flex flex-col gap-2 items-center w-[120px]">
+          <div className="flex w-[120px] flex-col items-center gap-2">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

@@ -7,10 +7,14 @@ import { Toaster } from "sonner";
 export default function App() {
   return (
     <GameProvider>
-      {/* 确保 iPad 尺寸的容器适配，这里使用全屏高度 */}
-      <div className="w-full h-screen overflow-hidden text-gray-800 bg-gray-100 font-sans select-none antialiased">
-        <RouterProvider router={router} />
-        {/* 配置全局提示组件，放大字体和图标，使其适合儿童使用 */}
+      <div className="min-h-dvh overflow-hidden bg-[linear-gradient(180deg,#eff6ff_0%,#fef3c7_100%)] font-sans text-gray-800 select-none antialiased">
+        <div className="flex min-h-dvh items-center justify-center p-4">
+          <div className="ipad-stage overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-[0_30px_90px_rgba(56,189,248,0.2)] backdrop-blur-md">
+            <div className="h-full w-full overflow-hidden bg-white">
+              <RouterProvider router={router} />
+            </div>
+          </div>
+        </div>
         <Toaster
           position="top-center"
           toastOptions={{

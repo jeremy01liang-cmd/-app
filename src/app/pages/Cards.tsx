@@ -8,7 +8,7 @@ export const Cards: React.FC = () => {
   const { cards, drawCard, stars } = useGame();
 
   return (
-    <div className="flex flex-col h-screen bg-purple-50 p-6 overflow-hidden relative">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-purple-50 p-6">
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-300 via-purple-50 to-pink-100"></div>
 
       {/* 头部导航 */}

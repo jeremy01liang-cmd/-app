@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { toast } from "sonner";
+
+const DAILY_CRAWLING_WORM_LIMIT = 3;
+const GAME_STATE_STORAGE_KEY = "codex-learning-home-state";
 
 interface GameState {
   stars: number;
@@ -13,6 +16,10 @@ interface GameState {
   chickenSkin: string; // 'default' | 'pony'
   cards: any[];
   learnedWords: string[];
+}
+
+interface StoredGameState extends GameState {
+  lastCatchResetDate: string;
 }
 
 interface GameContextType extends GameState {
@@ -33,20 +40,74 @@ interface GameContextType extends GameState {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
+const getTodayKey = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const createDefaultState = (): StoredGameState => ({
+  stars: 100,
+  waterLeft: 3,
+  fertilizers: 0,
+  worms: 0,
+  corns: 0,
+  catchWormLeft: DAILY_CRAWLING_WORM_LIMIT,
+  treeLevel: 1,
+  treeProgress: 0,
+  chickenSkin: "default",
+  cards: [],
+  learnedWords: [],
+  lastCatchResetDate: getTodayKey(),
+});
+
+const refreshDailyCatchLimit = (state: StoredGameState): StoredGameState => {
+  const today = getTodayKey();
+  if (state.lastCatchResetDate === today) {
+    return state;
+  }
+
+  return {
+    ...state,
+    catchWormLeft: DAILY_CRAWLING_WORM_LIMIT,
+    lastCatchResetDate: today,
+  };
+};
+
+const loadStoredState = (): StoredGameState => {
+  if (typeof window === "undefined") {
+    return createDefaultState();
+  }
+
+  try {
+    const raw = window.localStorage.getItem(GAME_STATE_STORAGE_KEY);
+    if (!raw) {
+      return createDefaultState();
+    }
+
+    const parsed = JSON.parse(raw) as Partial<StoredGameState>;
+    return refreshDailyCatchLimit({
+      ...createDefaultState(),
+      ...parsed,
+      lastCatchResetDate: typeof parsed.lastCatchResetDate === "string" ? parsed.lastCatchResetDate : getTodayKey(),
+    });
+  } catch {
+    return createDefaultState();
+  }
+};
+
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<GameState>({
-    stars: 100,
-    waterLeft: 3,
-    fertilizers: 0,
-    worms: 0,
-    corns: 0,
-    catchWormLeft: 1,
-    treeLevel: 1,
-    treeProgress: 0,
-    chickenSkin: "default",
-    cards: [],
-    learnedWords: [],
-  });
+  const [state, setState] = useState<StoredGameState>(loadStoredState);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
 
   const addStars = (amount: number) => {
     setState((prev) => ({ ...prev, stars: prev.stars + amount }));
@@ -85,12 +146,22 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const buyFertilizer = () => {
-    if (state.stars >= 5) {
-      setState((prev) => ({
+    let purchased = false;
+
+    setState((prev) => {
+      if (prev.stars < 5) {
+        return prev;
+      }
+
+      purchased = true;
+      return {
         ...prev,
         stars: prev.stars - 5,
         fertilizers: prev.fertilizers + 1,
-      }));
+      };
+    });
+
+    if (purchased) {
       toast.success("成功购买了一包化肥！🌱");
     } else {
       toast.error("星星不足哦，快去完成任务赚星星吧！");
@@ -108,8 +179,18 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const buyWorm = () => {
-    if (state.stars >= 5) {
-      setState((prev) => ({ ...prev, stars: prev.stars - 5, worms: prev.worms + 1 }));
+    let purchased = false;
+
+    setState((prev) => {
+      if (prev.stars < 5) {
+        return prev;
+      }
+
+      purchased = true;
+      return { ...prev, stars: prev.stars - 5, worms: prev.worms + 1 };
+    });
+
+    if (purchased) {
       toast.success("购买了一条虫子！🐛");
     } else {
       toast.error("星星不足！");
@@ -117,8 +198,18 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const buyCorn = () => {
-    if (state.stars >= 5) {
-      setState((prev) => ({ ...prev, stars: prev.stars - 5, corns: prev.corns + 1 }));
+    let purchased = false;
+
+    setState((prev) => {
+      if (prev.stars < 5) {
+        return prev;
+      }
+
+      purchased = true;
+      return { ...prev, stars: prev.stars - 5, corns: prev.corns + 1 };
+    });
+
+    if (purchased) {
       toast.success("购买了一份玉米！🌽");
     } else {
       toast.error("星星不足！");
@@ -126,24 +217,51 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const catchWorm = () => {
-    if (state.catchWormLeft > 0) {
-      setState((prev) => ({
-        ...prev,
-        catchWormLeft: prev.catchWormLeft - 1,
-        worms: prev.worms + 1,
-      }));
+    let caught = false;
+
+    setState((prev) => {
+      const nextState = refreshDailyCatchLimit(prev);
+      if (nextState.catchWormLeft <= 0) {
+        return nextState;
+      }
+
+      caught = true;
+      return {
+        ...nextState,
+        catchWormLeft: nextState.catchWormLeft - 1,
+        worms: nextState.worms + 1,
+      };
+    });
+
+    if (caught) {
       toast.success("成功捉到一条大胖虫子！🐛");
     } else {
-      toast.error("今天已经捉过虫子啦，小鸡让你明天再捉！");
+      toast.error("今天只能抓 3 条虫子，明天再来吧！");
     }
   };
 
   const catchCrawlingWorm = () => {
-    setState((prev) => ({
-      ...prev,
-      worms: prev.worms + 1,
-    }));
-    toast.success("抓到地上的一只小虫子！🐛");
+    let caught = false;
+
+    setState((prev) => {
+      const nextState = refreshDailyCatchLimit(prev);
+      if (nextState.catchWormLeft <= 0) {
+        return nextState;
+      }
+
+      caught = true;
+      return {
+        ...nextState,
+        catchWormLeft: nextState.catchWormLeft - 1,
+        worms: nextState.worms + 1,
+      };
+    });
+
+    if (caught) {
+      toast.success("抓到地上的一只小虫子！🐛");
+    } else {
+      toast.error("今天只能抓 3 条虫子，明天再来吧！");
+    }
   };
 
   const feedWorm = () => {
@@ -170,13 +288,23 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const drawCard = () => {
-    if (state.stars >= 20) {
+    let drewCard = false;
+
+    setState((prev) => {
+      if (prev.stars < 20) {
+        return prev;
+      }
+
       const newCardId = Math.floor(Math.random() * 100);
-      setState((prev) => ({
+      drewCard = true;
+      return {
         ...prev,
         stars: prev.stars - 20,
         cards: [...prev.cards, { id: newCardId, name: `神秘卡牌 #${newCardId}` }],
-      }));
+      };
+    });
+
+    if (drewCard) {
       toast.success("哇！抽到了一张新卡片！🃏");
     } else {
       toast.error("星星不足20颗，无法抽卡哦！");
@@ -186,7 +314,17 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   return (
     <GameContext.Provider
       value={{
-        ...state,
+        stars: state.stars,
+        waterLeft: state.waterLeft,
+        fertilizers: state.fertilizers,
+        worms: state.worms,
+        corns: state.corns,
+        catchWormLeft: state.catchWormLeft,
+        treeLevel: state.treeLevel,
+        treeProgress: state.treeProgress,
+        chickenSkin: state.chickenSkin,
+        cards: state.cards,
+        learnedWords: state.learnedWords,
         waterTree,
         buyFertilizer,
         useFertilizer,

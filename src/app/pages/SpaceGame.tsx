@@ -465,7 +465,7 @@ export const SpaceGame: React.FC = () => {
   }, [gameState]);
 
   return (
-    <div className="h-screen w-full bg-[#030308] flex flex-col font-mono text-cyan-400 overflow-hidden relative">
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#030308] font-mono text-cyan-400">
       {/* 顶部导航返回 */}
       <div className="absolute top-4 left-4 z-20 flex items-center gap-4">
         <button

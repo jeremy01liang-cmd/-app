@@ -4,6 +4,7 @@ import { Cards } from "./pages/Cards";
 import { Tasks } from "./pages/Tasks";
 import { Learning } from "./pages/Learning";
 import { WordLearning } from "./pages/WordLearning";
+import { OralMathRace } from "./pages/OralMathRace";
 import { SpaceGame } from "./pages/SpaceGame";
 
 export const router = createBrowserRouter([
@@ -15,6 +16,7 @@ export const router = createBrowserRouter([
       { path: "tasks", Component: Tasks },
       { path: "learning", Component: Learning },
       { path: "learning/words", Component: WordLearning },
+      { path: "learning/oral-math-race", Component: OralMathRace },
       { path: "game", Component: SpaceGame },
     ],
   },

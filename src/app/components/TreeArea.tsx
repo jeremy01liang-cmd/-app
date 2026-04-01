@@ -46,7 +46,7 @@ export const TreeArea: React.FC = () => {
             rotate: isWatering ? [0, -5, 5, 0] : isFertilizing ? [0, -15, 15, -10, 10, 0] : 0,
           }}
           transition={{ duration: isFertilizing ? 0.6 : 0.5 }}
-          className="text-[180px] drop-shadow-2xl cursor-pointer select-none relative leading-none"
+          className="relative cursor-pointer select-none text-[clamp(7rem,20vh,11rem)] leading-none drop-shadow-2xl"
         >
           {getTreeEmoji()}
           
@@ -75,7 +75,7 @@ export const TreeArea: React.FC = () => {
         </motion.div>
 
         {/* 极简经验条 - 位于树正下方 */}
-        <div className="mt-4 flex items-center gap-2 bg-white/40 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-white/50 w-[140px]">
+        <div className="mt-4 flex w-[150px] items-center gap-2 rounded-full border border-white/50 bg-white/40 px-3 py-1.5 shadow-sm backdrop-blur-sm">
           <span className="text-green-700/80 font-bold text-[11px] whitespace-nowrap">
             Lv.{treeLevel}
           </span>
@@ -94,7 +94,7 @@ export const TreeArea: React.FC = () => {
       <div className="flex flex-col gap-4 mt-auto z-10 shrink-0">
         <div className="flex gap-4 justify-center">
           {/* 浇水区域 */}
-          <div className="flex flex-col gap-2 items-center w-[120px]">
+          <div className="flex w-[120px] flex-col items-center gap-2">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -114,7 +114,7 @@ export const TreeArea: React.FC = () => {
           </div>
 
           {/* 施肥区域 */}
-          <div className="flex flex-col gap-2 items-center w-[120px]">
+          <div className="flex w-[120px] flex-col items-center gap-2">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

@@ -12,7 +12,7 @@ export const Tasks: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-blue-50 p-6 overflow-hidden relative">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-blue-50 p-6">
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-blue-300 via-blue-50 to-indigo-100"></div>
 
       {/* 头部导航 */}
