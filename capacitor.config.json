@@ -1,0 +1,9 @@
+{
+  "appId": "com.codex.learningplus",
+  "appName": "Learning+",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "automatic"
+  }
+}

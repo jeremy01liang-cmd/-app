@@ -1,0 +1,16 @@
+services:
+  aliyun-speech:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: 8787
+      ALIYUN_AK_ID: ${ALIYUN_AK_ID}
+      ALIYUN_AK_SECRET: ${ALIYUN_AK_SECRET}
+      ALIYUN_NLS_APP_KEY: ${ALIYUN_NLS_APP_KEY}
+      ALIYUN_NLS_TOKEN: ${ALIYUN_NLS_TOKEN:-}
+      ALIYUN_NLS_REGION: ${ALIYUN_NLS_REGION:-cn-shanghai}
+      ALIYUN_NLS_VOICE: ${ALIYUN_NLS_VOICE:-xiaoyun}
+      SPEECH_CORS_ORIGINS: ${SPEECH_CORS_ORIGINS:-capacitor://localhost,http://localhost,https://localhost}

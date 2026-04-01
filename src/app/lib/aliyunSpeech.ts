@@ -1,5 +1,18 @@
+function getSpeechApiBaseUrl() {
+  const configuredOrigin = import.meta.env.VITE_SPEECH_API_ORIGIN?.trim().replace(/\/$/, "");
+  if (configuredOrigin) {
+    return configuredOrigin;
+  }
+
+  return "";
+}
+
+function getSpeechApiUrl(path: string) {
+  return `${getSpeechApiBaseUrl()}${path}`;
+}
+
 export async function synthesizeWordAudio(text: string) {
-  const response = await fetch("/api/aliyun-speech/tts", {
+  const response = await fetch(getSpeechApiUrl("/api/aliyun-speech/tts"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -16,7 +29,7 @@ export async function synthesizeWordAudio(text: string) {
 }
 
 export async function recognizeWordAudio(audioBlob: Blob) {
-  const response = await fetch("/api/aliyun-speech/asr", {
+  const response = await fetch(getSpeechApiUrl("/api/aliyun-speech/asr"), {
     method: "POST",
     headers: {
       "Content-Type": "application/octet-stream",

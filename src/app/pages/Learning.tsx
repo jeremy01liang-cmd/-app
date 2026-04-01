@@ -2,13 +2,21 @@ import React from "react";
 import { Link } from "react-router";
 import { motion } from "motion/react";
 import { ArrowLeft, BookOpen, Calculator, Globe2 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { type GradeKey, getCourseRecommendation, getGradeOption } from "../lib/parentPortal";
 
 export const Learning: React.FC = () => {
+  const { currentUser } = useAuth();
+  const childGrade = (currentUser?.childGrade ?? null) as GradeKey | null;
+  const currentGrade = getGradeOption(childGrade);
+  const recommendation = getCourseRecommendation(childGrade);
+
   const courses = [
     {
       id: "words",
       title: "开心背单词",
-      desc: "看图识字，边玩边学",
+      desc: recommendation?.wordLearning.description ?? "看图识字，边玩边学",
+      badge: recommendation?.wordLearning.label ?? "默认推荐",
       color: "bg-blue-400",
       shadow: "shadow-blue-700/50",
       border: "border-blue-600",
@@ -18,7 +26,8 @@ export const Learning: React.FC = () => {
     {
       id: "oral-math-race",
       title: "口算竞赛",
-      desc: "60秒冲分，连击翻倍",
+      desc: recommendation?.oralMath.description ?? "60秒冲分，连击翻倍",
+      badge: recommendation?.oralMath.label ?? "默认推荐",
       color: "bg-amber-400",
       shadow: "shadow-amber-700/40",
       border: "border-amber-600",
@@ -55,6 +64,17 @@ export const Learning: React.FC = () => {
         <h2 className="text-4xl font-extrabold text-gray-800 mb-8 drop-shadow-sm">
           今天想学点什么呢？🤔
         </h2>
+        <div className="mb-8 w-full max-w-5xl px-4">
+          <div className="rounded-[28px] border border-white/80 bg-white/70 px-6 py-5 text-left shadow-sm backdrop-blur-sm">
+            <div className="text-sm font-black text-sky-700">家长端已同步学习建议</div>
+            <div className="mt-2 text-2xl font-black text-slate-800">
+              {currentGrade && recommendation ? `${currentGrade.label} · ${recommendation.overallLabel}` : "暂未设置孩子年级"}
+            </div>
+            <p className="mt-2 text-sm leading-7 text-slate-500">
+              {recommendation?.summary ?? "前往首页的【家长端】入口，选择孩子年级后，系统会自动匹配更合适的课程难度。"}
+            </p>
+          </div>
+        </div>
         <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 px-4">
           {courses.map((course, index) => (
             <Link key={course.id} to={course.link} className="block">
@@ -72,6 +92,9 @@ export const Learning: React.FC = () => {
                 <p className="text-xl text-white/90 font-bold bg-black/10 px-4 py-2 rounded-full mt-2">
                   {course.desc}
                 </p>
+                <div className="mt-4 rounded-full bg-white/20 px-4 py-2 text-sm font-black text-white shadow-sm">
+                  当前匹配：{course.badge}
+                </div>
               </motion.div>
             </Link>
           ))}

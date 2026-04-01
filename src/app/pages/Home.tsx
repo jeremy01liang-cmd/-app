@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Header } from "../components/Header";
 import { TreeArea } from "../components/TreeArea";
 import { ChickenArea } from "../components/ChickenArea";
 import { CrawlingBugs } from "../components/CrawlingBugs";
+import { ParentPortalEntry } from "../components/ParentPortalEntry";
 import { DEFAULT_WEATHER_LOCATION, fetchTodayWeather, type TodayWeather, type WeatherLocation } from "../lib/weather";
 
 type WeatherState =
@@ -67,6 +69,18 @@ function getCurrentPosition(): Promise<WeatherLocation> {
   });
 }
 
+function getLocationErrorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = (error as { code?: number }).code;
+
+    if (code === 1) return "请允许位置访问，这样天气才能跟着你所在的城市变化。";
+    if (code === 2) return "暂时无法获取你的位置，可以再点一次试试。";
+    if (code === 3) return "定位超时了，可以点位置再次授权。";
+  }
+
+  return "没有拿到当前位置，你可以点击天气位置重新授权。";
+}
+
 function getWeatherScene(weatherCode: number): WeatherScene {
   if ([95, 96, 99].includes(weatherCode)) return "stormy";
   if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return "snowy";
@@ -106,47 +120,84 @@ function getSceneBackground(scene: WeatherScene) {
 
 export const Home: React.FC = () => {
   const [weatherState, setWeatherState] = useState<WeatherState>({ status: "loading" });
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadWeather = async (preferCurrentLocation = true) => {
+    setIsRequestingLocation(preferCurrentLocation);
 
-    const loadWeather = async () => {
-      try {
+    if (preferCurrentLocation) {
+      setWeatherState((current) => (current.status === "ready" ? current : { status: "loading" }));
+    }
+
+    try {
+      if (preferCurrentLocation) {
         const location = await getCurrentPosition();
         const data = await fetchTodayWeather(location);
 
-        if (!cancelled) {
-          setWeatherState({ status: "ready", data, fallbackNote: null });
-        }
-      } catch {
+        setWeatherState({ status: "ready", data, fallbackNote: null });
+        return true;
+      }
+
+      const fallbackData = await fetchTodayWeather(DEFAULT_WEATHER_LOCATION);
+      setWeatherState({
+        status: "ready",
+        data: fallbackData,
+        fallbackNote: `未获取到定位，展示${DEFAULT_WEATHER_LOCATION.label}天气`,
+      });
+      return false;
+    } catch (error) {
+      if (preferCurrentLocation) {
         try {
           const fallbackData = await fetchTodayWeather(DEFAULT_WEATHER_LOCATION);
-
-          if (!cancelled) {
-            setWeatherState({
-              status: "ready",
-              data: fallbackData,
-              fallbackNote: `未获取到定位，展示${DEFAULT_WEATHER_LOCATION.label}天气`,
-            });
-          }
+          setWeatherState({
+            status: "ready",
+            data: fallbackData,
+            fallbackNote: `未获取到定位，展示${DEFAULT_WEATHER_LOCATION.label}天气`,
+          });
+          return false;
         } catch {
-          if (!cancelled) {
-            setWeatherState({ status: "error" });
-          }
+          setWeatherState({ status: "error" });
         }
+
+        throw error;
       }
-    };
 
-    loadWeather();
+      setWeatherState({ status: "error" });
+      throw error;
+    } finally {
+      setIsRequestingLocation(false);
+    }
+  };
 
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    void loadWeather();
   }, []);
+
+  const handleRequestLocation = async () => {
+    if (isRequestingLocation) return;
+
+    try {
+      const granted = await loadWeather(true);
+
+      if (granted) {
+        toast.success("已经切换到当前位置天气");
+      } else {
+        toast.message("暂时还没有拿到当前位置", {
+          description: "你可以在浏览器里允许位置权限后，再点一次天气位置。",
+        });
+      }
+    } catch (error) {
+      toast.message("还没有拿到当前位置", {
+        description: getLocationErrorMessage(error),
+      });
+    }
+  };
 
   const weatherData = weatherState.status === "ready" ? weatherState.data : null;
   const weatherScene = weatherData ? getWeatherScene(weatherData.weatherCode) : "sunny";
   const weatherLabel = weatherData ? getWeatherLabel(weatherData.weatherCode, weatherData.isDay) : "天气加载中";
+  const needsLocationAuthorization =
+    weatherState.status === "error" || (weatherState.status === "ready" && weatherState.fallbackNote !== null);
   const weatherEmoji =
     weatherScene === "stormy"
       ? "⛈️"
@@ -211,12 +262,29 @@ export const Home: React.FC = () => {
             <span>{weatherEmoji}</span>
             <span>{weatherData ? `${Math.round(weatherData.currentTemperature)}°` : "--°"}</span>
           </div>
-          <div className="text-xs font-bold text-gray-600">
+          {needsLocationAuthorization ? (
+            <button
+              type="button"
+              onClick={handleRequestLocation}
+              className="ml-auto flex max-w-full items-center gap-1 rounded-full border border-sky-200/80 bg-white/70 px-2.5 py-1 text-xs font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 disabled:cursor-wait disabled:opacity-70"
+              disabled={isRequestingLocation}
+            >
+              <span>{isRequestingLocation ? "定位中..." : "点击授权位置"}</span>
+            </button>
+          ) : null}
+          <div className="mt-1 text-xs font-bold text-gray-600">
             {weatherData ? `${weatherData.locationLabel} · ${weatherLabel}` : "正在获取真实天气"}
           </div>
           {weatherState.status === "ready" && weatherState.fallbackNote ? (
             <div className="text-[10px] text-gray-400">{weatherState.fallbackNote}</div>
           ) : null}
+          {weatherState.status === "error" ? (
+            <div className="text-[10px] text-gray-400">点击上方按钮，重新获取你所在位置的天气</div>
+          ) : null}
+        </div>
+
+        <div className="absolute left-5 top-5 z-20">
+          <ParentPortalEntry />
         </div>
 
         {/* 天气特效 */}

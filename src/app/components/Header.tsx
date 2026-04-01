@@ -1,24 +1,32 @@
 import React from "react";
 import { Link } from "react-router";
 import { useGame } from "../context/GameContext";
-import { Star, WalletCards, ClipboardList, Gamepad2, BookOpen } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { Star, WalletCards, ClipboardList, Gamepad2, BookOpen, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 
 export const Header: React.FC = () => {
   const { stars } = useGame();
+  const { currentUser } = useAuth();
 
   return (
     <header className="mb-4 flex w-full flex-wrap items-center justify-between gap-4 rounded-3xl bg-white/70 p-4 shadow-sm backdrop-blur-md">
       {/* 个人信息 */}
-      <div className="flex shrink-0 items-center gap-3 rounded-full border-2 border-purple-100 bg-white p-2 pr-5 shadow-inner">
-        <div className="w-12 h-12 bg-purple-400 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-md">
-          🦄
-        </div>
-        <div className="flex flex-col">
-          <span className="font-bold text-gray-700 text-lg">小葡萄</span>
-          <span className="text-xs text-gray-400 font-medium">小学二年级</span>
-        </div>
-      </div>
+      <Link to="/account">
+        <motion.div
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex shrink-0 items-center gap-3 rounded-full border-2 border-purple-100 bg-white p-2 pr-4 shadow-inner transition-colors hover:bg-purple-50"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-400 text-2xl font-bold text-white shadow-md">
+            🦄
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-700 text-lg">{currentUser?.nickname ?? "小葡萄"}</span>
+            <ChevronRight className="h-4 w-4 text-purple-400" />
+          </div>
+        </motion.div>
+      </Link>
 
       {/* 快捷操作区 */}
       <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
@@ -79,6 +87,7 @@ export const Header: React.FC = () => {
             <span className="text-xl animate-bounce ml-1">🚀</span>
           </motion.button>
         </Link>
+
       </div>
     </header>
   );

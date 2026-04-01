@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { toast } from "sonner";
+import { useAuth } from "./AuthContext";
 
 const DAILY_CRAWLING_WORM_LIMIT = 3;
-const GAME_STATE_STORAGE_KEY = "codex-learning-home-state";
 
 interface GameState {
   stars: number;
@@ -76,13 +76,15 @@ const refreshDailyCatchLimit = (state: StoredGameState): StoredGameState => {
   };
 };
 
-const loadStoredState = (): StoredGameState => {
-  if (typeof window === "undefined") {
+const getGameStateStorageKey = (accountId: string) => `codex-learning-home-state:${accountId}`;
+
+const loadStoredState = (accountId: string | null | undefined): StoredGameState => {
+  if (typeof window === "undefined" || !accountId) {
     return createDefaultState();
   }
 
   try {
-    const raw = window.localStorage.getItem(GAME_STATE_STORAGE_KEY);
+    const raw = window.localStorage.getItem(getGameStateStorageKey(accountId));
     if (!raw) {
       return createDefaultState();
     }
@@ -99,15 +101,28 @@ const loadStoredState = (): StoredGameState => {
 };
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<StoredGameState>(loadStoredState);
+  const { currentUser } = useAuth();
+  const [state, setState] = useState<StoredGameState>(createDefaultState);
+  const [hydratedAccountId, setHydratedAccountId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!currentUser) {
+      setState(createDefaultState());
+      setHydratedAccountId(null);
       return;
     }
 
-    window.localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    setState(loadStoredState(currentUser.accountId));
+    setHydratedAccountId(currentUser.accountId);
+  }, [currentUser?.accountId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !currentUser || hydratedAccountId !== currentUser.accountId) {
+      return;
+    }
+
+    window.localStorage.setItem(getGameStateStorageKey(currentUser.accountId), JSON.stringify(state));
+  }, [currentUser?.accountId, hydratedAccountId, state]);
 
   const addStars = (amount: number) => {
     setState((prev) => ({ ...prev, stars: prev.stars + amount }));

@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env.local
 .env.*.local
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/Pods/
+ios/App/build/
