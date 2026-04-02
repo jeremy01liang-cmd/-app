@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Learning+ needs microphone access so children can complete speaking and pronunciation exercises.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Learning+ needs location access to show the local weather in the home garden.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -42,8 +44,6 @@
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>

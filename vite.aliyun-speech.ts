@@ -1,7 +1,14 @@
 import crypto from "node:crypto";
+import { execFile } from "node:child_process";
+import fs from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { URL } from "node:url";
+import { promisify } from "node:util";
 import type { Plugin } from "vite";
+
+const execFileAsync = promisify(execFile);
 
 type SpeechEnv = {
   accessKeyId?: string;
@@ -128,6 +135,47 @@ function getAsrTranscript(payload: any) {
   return String(payload?.result || payload?.Result || payload?.flash_result?.sentence || "").trim();
 }
 
+function getAudioExtensionFromMimeType(contentType = "") {
+  const mimeType = contentType.split(";")[0].trim().toLowerCase();
+  if (mimeType.includes("wav")) return ".wav";
+  if (mimeType.includes("webm")) return ".webm";
+  if (mimeType.includes("ogg")) return ".ogg";
+  if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return ".mp3";
+  if (mimeType.includes("mp4") || mimeType.includes("m4a") || mimeType.includes("aac")) return ".m4a";
+  if (mimeType.includes("aac")) return ".aac";
+  return ".bin";
+}
+
+async function convertToAliyunAsrWav(buffer: Buffer, contentType = "") {
+  const extension = getAudioExtensionFromMimeType(contentType);
+  if (extension === ".wav") {
+    return buffer;
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "aliyun-asr-"));
+  const inputPath = path.join(tempDir, `input${extension}`);
+  const outputPath = path.join(tempDir, "output.wav");
+
+  try {
+    await fs.writeFile(inputPath, buffer);
+    await execFileAsync("ffmpeg", [
+      "-y",
+      "-i",
+      inputPath,
+      "-ac",
+      "1",
+      "-ar",
+      "16000",
+      "-acodec",
+      "pcm_s16le",
+      outputPath,
+    ]);
+    return await fs.readFile(outputPath);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 async function handleTts(req: IncomingMessage, res: ServerResponse) {
   const env = readSpeechEnv();
   if (!env.appKey) {
@@ -187,6 +235,8 @@ async function handleAsr(req: IncomingMessage, res: ServerResponse) {
       return sendError(res, 400, "录音数据不能为空");
     }
 
+    const wavBuffer = await convertToAliyunAsrWav(audioBuffer, req.headers["content-type"]);
+
     const token = await getAliyunToken(env);
     const endpoint = new URL(`${getSpeechHost(env.region)}/stream/v1/asr`);
     endpoint.searchParams.set("appkey", env.appKey);
@@ -201,7 +251,7 @@ async function handleAsr(req: IncomingMessage, res: ServerResponse) {
         "X-NLS-Token": token,
         "Content-Type": "application/octet-stream",
       },
-      body: audioBuffer,
+      body: wavBuffer,
     });
 
     const responseText = await response.text();

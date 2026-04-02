@@ -1,6 +1,13 @@
 import crypto from "node:crypto";
+import { execFile } from "node:child_process";
+import fs from "node:fs/promises";
 import http from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { URL } from "node:url";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 const tokenCache = {
   token: undefined,
@@ -101,23 +108,34 @@ function getAllowedOrigin(requestOrigin) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-  const defaultOrigins = [
-    "capacitor://localhost",
-    "ionic://localhost",
-    "http://localhost",
-    "https://localhost",
-  ];
+  const defaultOrigins = ["capacitor://localhost", "ionic://localhost"];
   const allowList = new Set([...defaultOrigins, ...configuredOrigins]);
 
   if (!requestOrigin) {
     return "*";
   }
 
-  if (allowList.has("*") || allowList.has(requestOrigin)) {
+  if (allowList.has("*") || allowList.has(requestOrigin) || isBuiltinAllowedOrigin(requestOrigin)) {
     return requestOrigin;
   }
 
   return null;
+}
+
+function isBuiltinAllowedOrigin(origin) {
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.") ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function sendCors(res, requestOrigin) {
@@ -168,6 +186,47 @@ function getSpeechHost(region) {
 
 function getAsrTranscript(payload) {
   return String(payload?.result || payload?.Result || payload?.flash_result?.sentence || "").trim();
+}
+
+function getAudioExtensionFromMimeType(contentType = "") {
+  const mimeType = contentType.split(";")[0].trim().toLowerCase();
+  if (mimeType.includes("wav")) return ".wav";
+  if (mimeType.includes("webm")) return ".webm";
+  if (mimeType.includes("ogg")) return ".ogg";
+  if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return ".mp3";
+  if (mimeType.includes("mp4") || mimeType.includes("m4a") || mimeType.includes("aac")) return ".m4a";
+  if (mimeType.includes("aac")) return ".aac";
+  return ".bin";
+}
+
+async function convertToAliyunAsrWav(buffer, contentType = "") {
+  const extension = getAudioExtensionFromMimeType(contentType);
+  if (extension === ".wav") {
+    return buffer;
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "aliyun-asr-"));
+  const inputPath = path.join(tempDir, `input${extension}`);
+  const outputPath = path.join(tempDir, "output.wav");
+
+  try {
+    await fs.writeFile(inputPath, buffer);
+    await execFileAsync("ffmpeg", [
+      "-y",
+      "-i",
+      inputPath,
+      "-ac",
+      "1",
+      "-ar",
+      "16000",
+      "-acodec",
+      "pcm_s16le",
+      outputPath,
+    ]);
+    return await fs.readFile(outputPath);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 async function handleTts(req, res, requestOrigin) {
@@ -249,6 +308,8 @@ async function handleAsr(req, res, requestOrigin) {
       return sendError(res, 400, "录音数据不能为空", requestOrigin);
     }
 
+    const wavBuffer = await convertToAliyunAsrWav(audioBuffer, req.headers["content-type"]);
+
     const token = await getAliyunToken(env);
     const endpoint = new URL(`${getSpeechHost(env.region)}/stream/v1/asr`);
     endpoint.searchParams.set("appkey", env.appKey);
@@ -263,7 +324,7 @@ async function handleAsr(req, res, requestOrigin) {
         "X-NLS-Token": token,
         "Content-Type": "application/octet-stream",
       },
-      body: audioBuffer,
+      body: wavBuffer,
     });
 
     const responseText = await response.text();

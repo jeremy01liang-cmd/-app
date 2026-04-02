@@ -25,6 +25,22 @@ function getRecordingStartError(error: unknown) {
   return error instanceof Error ? error : new Error("无法启动麦克风，请稍后再试。");
 }
 
+function getSupportedRecorderMimeType() {
+  if (typeof window === "undefined" || typeof window.MediaRecorder === "undefined") {
+    return "";
+  }
+
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+  ];
+
+  return candidates.find((candidate) => window.MediaRecorder.isTypeSupported?.(candidate)) || "";
+}
+
 function mergeBuffers(chunks: Float32Array[]) {
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
   const merged = new Float32Array(totalLength);
@@ -76,6 +92,19 @@ function floatTo16BitPCM(view: DataView, offset: number, input: Float32Array) {
   }
 }
 
+function getAverageLevel(samples: Float32Array) {
+  if (!samples.length) {
+    return 0;
+  }
+
+  let total = 0;
+  for (let index = 0; index < samples.length; index += 1) {
+    total += Math.abs(samples[index]);
+  }
+
+  return total / samples.length;
+}
+
 function encodeWav(samples: Float32Array, sampleRate: number) {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
@@ -104,6 +133,115 @@ function encodeWav(samples: Float32Array, sampleRate: number) {
   return buffer;
 }
 
+async function startMediaRecorderSession(stream: MediaStream): Promise<RecordingSession> {
+  const mimeType = getSupportedRecorderMimeType();
+  const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+  const chunks: Blob[] = [];
+
+  recorder.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      chunks.push(event.data);
+    }
+  };
+
+  recorder.start();
+
+  const stopTracks = () => {
+    stream.getTracks().forEach((track) => track.stop());
+  };
+
+  return {
+    stop: async () =>
+      new Promise<Blob>((resolve, reject) => {
+        recorder.onerror = () => {
+          stopTracks();
+          reject(new Error("录音过程中出错了，请重新试一次。"));
+        };
+
+        recorder.onstop = async () => {
+          try {
+            const blobType = recorder.mimeType || mimeType || chunks[0]?.type || "audio/webm";
+            const blob = new Blob(chunks, { type: blobType });
+            if (!blob.size) {
+              throw new Error("没有采集到有效录音，请重新录制一次。");
+            }
+            resolve(blob);
+          } catch (error) {
+            reject(error instanceof Error ? error : new Error("录音处理失败，请重新试一次。"));
+          } finally {
+            stopTracks();
+          }
+        };
+
+        recorder.stop();
+      }),
+    cancel: async () => {
+      if (recorder.state !== "inactive") {
+        recorder.onstop = () => {
+          stopTracks();
+        };
+        recorder.stop();
+        return;
+      }
+
+      stopTracks();
+    },
+  };
+}
+
+async function startPcmFallbackSession(stream: MediaStream): Promise<RecordingSession> {
+  const audioContext = new AudioContext();
+  const input = audioContext.createMediaStreamSource(stream);
+  const processor = audioContext.createScriptProcessor(4096, 1, 1);
+  const silentGain = audioContext.createGain();
+  silentGain.gain.value = 0;
+
+  const chunks: Float32Array[] = [];
+
+  processor.onaudioprocess = (event) => {
+    const channelData = event.inputBuffer.getChannelData(0);
+    chunks.push(new Float32Array(channelData));
+  };
+
+  input.connect(processor);
+  processor.connect(silentGain);
+  silentGain.connect(audioContext.destination);
+
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
+
+  const cleanup = async () => {
+    processor.disconnect();
+    input.disconnect();
+    silentGain.disconnect();
+    stream.getTracks().forEach((track) => track.stop());
+    await audioContext.close();
+  };
+
+  return {
+    stop: async () => {
+      try {
+        const merged = mergeBuffers(chunks);
+        if (!merged.length) {
+          throw new Error("没有采集到麦克风声音，请重新授权麦克风后再试一次。");
+        }
+
+        const downsampled = downsampleBuffer(merged, audioContext.sampleRate, 16000);
+        if (getAverageLevel(downsampled) < 0.003) {
+          throw new Error("录到的声音太小或是静音，请靠近麦克风再试一次。");
+        }
+
+        const wavBuffer = encodeWav(downsampled, 16000);
+        return new Blob([wavBuffer], { type: "audio/wav" });
+      } finally {
+        await cleanup();
+      }
+    },
+    cancel: cleanup,
+  };
+}
+
 export async function startWavRecording(): Promise<RecordingSession> {
   if (!window.isSecureContext) {
     throw new Error("当前预览地址不支持麦克风，请改用本机 localhost 打开，或使用 HTTPS。");
@@ -127,39 +265,14 @@ export async function startWavRecording(): Promise<RecordingSession> {
     throw getRecordingStartError(error);
   }
 
-  const audioContext = new AudioContext();
-  const input = audioContext.createMediaStreamSource(stream);
-  const processor = audioContext.createScriptProcessor(4096, 1, 1);
-  const silentGain = audioContext.createGain();
-  silentGain.gain.value = 0;
+  if (typeof window.MediaRecorder !== "undefined") {
+    try {
+      return await startMediaRecorderSession(stream);
+    } catch (error) {
+      stream.getTracks().forEach((track) => track.stop());
+      throw error instanceof Error ? error : new Error("无法启动录音，请稍后再试。");
+    }
+  }
 
-  const chunks: Float32Array[] = [];
-
-  processor.onaudioprocess = (event) => {
-    const channelData = event.inputBuffer.getChannelData(0);
-    chunks.push(new Float32Array(channelData));
-  };
-
-  input.connect(processor);
-  processor.connect(silentGain);
-  silentGain.connect(audioContext.destination);
-
-  const cleanup = async () => {
-    processor.disconnect();
-    input.disconnect();
-    silentGain.disconnect();
-    stream.getTracks().forEach((track) => track.stop());
-    await audioContext.close();
-  };
-
-  return {
-    stop: async () => {
-      const merged = mergeBuffers(chunks);
-      const downsampled = downsampleBuffer(merged, audioContext.sampleRate, 16000);
-      const wavBuffer = encodeWav(downsampled, 16000);
-      await cleanup();
-      return new Blob([wavBuffer], { type: "audio/wav" });
-    },
-    cancel: cleanup,
-  };
+  return startPcmFallbackSession(stream);
 }
